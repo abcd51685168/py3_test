@@ -11,6 +11,13 @@ import binascii
 from PIL import Image
 import random
 
+import tensorflow as tf
+from keras.backend.tensorflow_backend import set_session
+
+config = tf.ConfigProto()
+config.gpu_options.per_process_gpu_memory_fraction = 0.4
+set_session(tf.Session(config=config))
+
 
 def get_data(data_set, label, width):
     X = np.zeros([label.shape[0], width, width])
@@ -30,7 +37,7 @@ print(y.shape)
 
 from sklearn.model_selection import train_test_split
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
 img_rows, img_cols = 512, 512
 input_shape = (512, 512, 1)
@@ -54,6 +61,7 @@ print(Y_test.shape)
 
 from keras.optimizers import Adam
 from keras.layers import BatchNormalization
+from keras.regularizers import l2, activity_l2
 
 
 def make_model_2(dense_layer_sizes, nb_filters, nb_conv, nb_pool):
@@ -69,39 +77,45 @@ def make_model_2(dense_layer_sizes, nb_filters, nb_conv, nb_pool):
     model.add(Convolution2D(nb_filters, nb_conv, nb_conv,
                             border_mode='valid',
                             input_shape=input_shape,
-                            init='glorot_normal'))  #
+                            init='glorot_normal'))
     model.add(Activation('relu'))
     model.add(Convolution2D(nb_filters, nb_conv, nb_conv,
                             border_mode='valid',
                             input_shape=input_shape))
     model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
+    # model.add(Dropout(0.5))
+
     model.add(Convolution2D(nb_filters * 2, 3, 3,
                             border_mode='valid',
-                            input_shape=input_shape))  #
+                            input_shape=input_shape))
     model.add(Activation('relu'))
     model.add(Convolution2D(nb_filters * 2, 3, 3,
                             border_mode='valid',
-                            input_shape=input_shape))  #
+                            input_shape=input_shape))
     model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
+    # model.add(Dropout(0.5))
+
     # model.add(BatchNormalization(mode=2))
     model.add(Convolution2D(nb_filters * 2 * 2, 3, 3,
                             border_mode='valid',
-                            input_shape=input_shape))  #
+                            input_shape=input_shape))
     model.add(Activation('relu'))
     model.add(Convolution2D(nb_filters * 2 * 2, 3, 3,
                             border_mode='valid',
-                            input_shape=input_shape))  #
+                            input_shape=input_shape))
     model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
     model.add(BatchNormalization(mode=2))
+    # model.add(Dropout(0.5))
 
     model.add(Flatten())
     for layer_size in dense_layer_sizes:
-        model.add(Dense(layer_size))
+        model.add(Dense(layer_size, W_regularizer=l2(0.001), activity_regularizer=activity_l2(0.001)))
     model.add(Activation('relu'))
     model.add(Dropout(0.5))
+
     model.add(Dense(nb_classes))
     model.add(Activation('softmax'))
     adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
@@ -113,10 +127,9 @@ def make_model_2(dense_layer_sizes, nb_filters, nb_conv, nb_pool):
 
 
 def single_model():
-    model = make_model_2(dense_layer_sizes=[128, 128], nb_filters=8, nb_conv=5, nb_pool=2)
-    model.fit(X_train, Y_train, batch_size=32, nb_epoch=1,
-              verbose=1)
-    score = model.evaluate(X_test, Y_test, verbose=0)
+    model = make_model_2(dense_layer_sizes=[128], nb_filters=8, nb_conv=5, nb_pool=2)
+    model.fit(X_train, Y_train, validation_split=0.2, batch_size=32, nb_epoch=10, shuffle=True, verbose=1)
+    score = model.evaluate(X_test, Y_test, verbose=1)
     print('Test score:', score[0])
     print('Test accuracy:', score[1])
     return model

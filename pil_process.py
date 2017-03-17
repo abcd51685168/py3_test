@@ -16,8 +16,8 @@ WIDTHS = []
 CPU_COUNT = cpu_count()
 filename_list = []
 exe_path = "/root/pe_classify/virus"
-pic_dir = "/root/pe_classify/pic"
-(DST_W, DST_H, SAVE_Q) = (512, 512, 90)
+pic_dir = "/root/pe_classify/pic_299"
+(DST_W, DST_H, SAVE_Q) = (299, 299, 90)
 
 
 def resize_from_img(ori_img, dst_img, dst_w, dst_h, save_q=75):
